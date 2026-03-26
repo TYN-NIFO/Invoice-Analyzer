@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: mode === "production" ? "/tools/invoice/" : "/",
+  // base path handled by NIFO rewrites
   server: {
     host: "::",
     port: 8080,
