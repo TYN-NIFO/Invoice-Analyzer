@@ -9,8 +9,9 @@ from sqlalchemy import func
 import io
 import re
 from pydantic import BaseModel
-from googleapiclient.http import MediaIoBaseDownload
-from services.email_ingestion import process_emails_async, get_drive_service, process_manual_invoice_upload, log_ingestion
+import boto3
+import os
+from services.email_ingestion import process_emails_async, get_s3_client, process_manual_invoice_upload, log_ingestion
 from auth import verify_api_key
 
 SECURITY_TERMS = [
@@ -286,63 +287,41 @@ async def get_invoice_file(invoice_id: int, db: Session = Depends(get_db)):
                 detail="Invoice not found"
             )
 
-        # Get file_id from either drive_file_id or pdf_url
-        file_id = invoice.drive_file_id
-        
-        if not file_id and invoice.pdf_url:
-            # Extract file_id from Drive URL
-            if "drive.google.com" in invoice.pdf_url:
-                match = re.search(r'/d/([a-zA-Z0-9-_]+)/', invoice.pdf_url)
-                if match:
-                    file_id = match.group(1)
-        
-        if not file_id:
+        # Get S3 URL from pdf_url or drive_file_id
+        pdf_url = invoice.pdf_url
+
+        if not pdf_url:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Invoice file not available"
             )
 
-        # Stream from Drive using service account
+        # If URL is an S3 URL, download from S3
         try:
-            drive_service = get_drive_service()
-            
-            # Get file metadata (lightweight call)
-            metadata = drive_service.files().get(
-                fileId=file_id,
-                fields="name,mimeType,size,modifiedTime"
-            ).execute()
+            BUCKET = os.getenv("BUCKET_NAME", "tyn-claims-app-storage-prod")
+            s3 = get_s3_client()
 
-            filename = metadata.get("name", f"invoice-{invoice_id}.pdf")
-            mime_type = metadata.get("mimeType", "application/pdf")
-            file_size = metadata.get("size", "0")
-            modified_time = metadata.get("modifiedTime", "")
+            if s3 and "s3." in pdf_url and BUCKET in pdf_url:
+                # Extract S3 key from URL
+                s3_key = pdf_url.split(f"{BUCKET}.s3.")[1].split("/", 1)[1] if f"{BUCKET}.s3." in pdf_url else None
+                if s3_key:
+                    response = s3.get_object(Bucket=BUCKET, Key=s3_key)
+                    filename = s3_key.split("/")[-1]
+                    return StreamingResponse(
+                        response['Body'],
+                        media_type=response.get('ContentType', 'application/pdf'),
+                        headers={
+                            "Content-Disposition": f'inline; filename="{filename}"',
+                            "Cache-Control": "public, max-age=86400",
+                        }
+                    )
 
-            # Download file content
-            file_buffer = io.BytesIO()
-            request = drive_service.files().get_media(fileId=file_id)
-            downloader = MediaIoBaseDownload(file_buffer, request)
-
-            done = False
-            while not done:
-                _, done = downloader.next_chunk()
-
-            file_buffer.seek(0)
-
-            return StreamingResponse(
-                file_buffer,
-                media_type=mime_type,
-                headers={
-                    "Content-Disposition": f'inline; filename="{filename}"',
-                    "Cache-Control": "public, max-age=86400, immutable",  # Cache for 24 hours
-                    "ETag": f'"{file_id}-{modified_time}"',
-                    "Content-Length": file_size,
-                    "Accept-Ranges": "bytes"
-                }
-            )
-        except Exception as drive_error:
+            # Fallback: redirect to the URL directly
+            return RedirectResponse(url=pdf_url)
+        except Exception as s3_error:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Cannot access invoice file from Google Drive. Error: {str(drive_error)}"
+                detail=f"Cannot access invoice file. Error: {str(s3_error)}"
             )
     except HTTPException:
         raise
