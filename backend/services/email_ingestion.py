@@ -16,13 +16,11 @@ from typing import List, Tuple, Dict
 from config import (
     EMAIL_USER, EMAIL_PASS, IMAP_SERVER, PROCESSED_LABEL,
     MINDEE_API_KEY, MINDEE_MODEL_ID,
-    GOOGLE_DRIVE_FOLDER_ID, CREDENTIALS_FILE, TOKEN_FILE, SCOPES,
     INVOICE_TERMS, ALLOWED_EXTENSIONS, EXCEL_FILE
 )
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+import boto3
+import uuid
+from botocore.config import Config as BotoConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -179,28 +177,26 @@ def process_manual_invoice_upload(file_name: str, file_bytes: bytes, uploaded_by
         "drive_link": drive_link
     }
 
-# ================= GOOGLE DRIVE AUTHENTICATION =================
+# ================= S3 STORAGE =================
 
-def get_drive_service():
-    """Authenticate and return Google Drive service"""
-    creds = None
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, 'rb') as token:
-            creds = pickle.load(token)
-    
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not os.path.exists(CREDENTIALS_FILE):
-                raise FileNotFoundError(f"❌ {CREDENTIALS_FILE} not found.")
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        
-        with open(TOKEN_FILE, 'wb') as token:
-            pickle.dump(creds, token)
-    
-    return build('drive', 'v3', credentials=creds)
+AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY", "")
+AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
+BUCKET_NAME = os.getenv("BUCKET_NAME", "tyn-claims-app-storage-prod")
+S3_PREFIX = "invoice-analyzer/"
+
+_s3_client = None
+def get_s3_client():
+    global _s3_client
+    if _s3_client is None and AWS_ACCESS_KEY and AWS_SECRET_KEY:
+        _s3_client = boto3.client(
+            's3',
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=AWS_REGION,
+            config=BotoConfig(connect_timeout=10, read_timeout=30, retries={'max_attempts': 2})
+        )
+    return _s3_client
 
 # ================= OCR EXTRACTION =================
 
@@ -266,45 +262,31 @@ def ocr_and_extract_data(file_name: str, file_bytes: bytes) -> Dict:
         logger.error(f"OCR error for {file_name}: {str(e)}")
         return None
 
-# ================= GOOGLE DRIVE UPLOAD =================
+# ================= S3 UPLOAD =================
 
 def upload_to_drive(file_bytes: bytes, filename: str) -> Tuple[str, str]:
-    """Upload file to Google Drive and make it publicly viewable"""
+    """Upload file to S3 and return (file_id, url)"""
     try:
-        drive_service = get_drive_service()
-        media = MediaIoBaseUpload(
-            io.BytesIO(file_bytes),
-            mimetype="application/octet-stream",
-            resumable=True
+        s3 = get_s3_client()
+        if not s3:
+            logger.error("[S3] S3 not configured (missing AWS credentials)")
+            return "no-s3", ""
+
+        file_id = str(uuid.uuid4())
+        s3_key = f"{S3_PREFIX}{file_id}/{filename}"
+
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType="application/octet-stream"
         )
-        metadata = {"name": filename, "parents": [GOOGLE_DRIVE_FOLDER_ID]}
-        
-        uploaded = drive_service.files().create(
-            body=metadata,
-            media_body=media,
-            fields="id, webViewLink"
-        ).execute()
-        
-        file_id = uploaded.get("id")
-        
-        # Make file publicly viewable (anyone with link can view)
-        try:
-            permission = {
-                'type': 'anyone',
-                'role': 'reader'
-            }
-            drive_service.permissions().create(
-                fileId=file_id,
-                body=permission,
-                fields='id'
-            ).execute()
-            logger.info(f"[DRIVE] File {filename} made publicly viewable")
-        except Exception as perm_error:
-            logger.warning(f"[DRIVE] Could not set public permission for {filename}: {perm_error}")
-        
-        return file_id, uploaded.get("webViewLink")
+
+        url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
+        logger.info(f"[S3] Uploaded {filename} to {s3_key}")
+        return file_id, url
     except Exception as e:
-        logger.error(f"Drive upload error for {filename}: {str(e)}")
+        logger.error(f"S3 upload error for {filename}: {str(e)}")
         return None, None
 
 # ================= DATABASE OPERATIONS =================

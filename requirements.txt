@@ -22,12 +22,12 @@ httpx==0.25.2
 # Environment & Configuration
 python-dotenv==1.0.0
 
-# OCR & Google Drive
+# OCR
 mindee>=4.30.0
-google-auth==2.33.0
-google-auth-oauthlib==1.2.1
-google-api-python-client==2.141.0
 openpyxl==3.1.5
+
+# AWS S3
+boto3
 
 # Optional: For production deployment
 # gunicorn==21.2.0
