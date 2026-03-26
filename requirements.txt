@@ -23,7 +23,7 @@ httpx==0.25.2
 python-dotenv==1.0.0
 
 # OCR & Google Drive
-mindee>=5.0.0
+mindee>=4.30.0
 google-auth==2.33.0
 google-auth-oauthlib==1.2.1
 google-api-python-client==2.141.0
