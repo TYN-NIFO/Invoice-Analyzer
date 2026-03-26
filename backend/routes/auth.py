@@ -2,17 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User
+from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 import bcrypt
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional
 
 router = APIRouter()
-
-# Secret key for JWT encoding (use environment variable in production)
-SECRET_KEY = "your-secret-key-change-in-production"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def verify_password(plain_password, hashed_password):
     # Use direct bcrypt to avoid passlib issues

@@ -22,6 +22,13 @@ httpx==0.25.2
 # Environment & Configuration
 python-dotenv==1.0.0
 
+# OCR & Google Drive
+mindee==4.10.0
+google-auth==2.33.0
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.141.0
+openpyxl==3.1.5
+
 # Optional: For production deployment
 # gunicorn==21.2.0
 # redis==5.0.1

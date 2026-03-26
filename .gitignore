@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/credentials.json
+backend/token.pickle
+.env
+frontend/dist
+.git_corrupt_backup_*
+
+# Python cache artifacts
+**/__pycache__/
+*.pyc
+
+# Local smoke-test artifacts
+backend/manual_upload_smoke.csv

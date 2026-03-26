@@ -1,22 +1,100 @@
-# Welcome to your Lovable project
+# Invoice Hub - Automated Invoice Processing System
 
-## Project info
+A professional invoice management and processing system with role-based access control.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- 🔐 **Secure Authentication** with JWT tokens and bcrypt password hashing
+- 👥 **Role-Based Access** (Admin and Reviewer roles)
+- 📊 **Admin Dashboard** for user management and system monitoring
+- 📋 **Invoice Review Queue** for efficient invoice processing
+- 📈 **Analytics & Reporting** for business insights
+- 🎨 **Modern UI** built with React, TypeScript, and Tailwind CSS
+- 🗄️ **Database Integration** with PostgreSQL and SQLAlchemy
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+### Frontend
+- React 18.3.1 with TypeScript
+- Vite for fast development
+- Tailwind CSS for styling
+- shadcn/ui for components
+- React Router for navigation
+- TanStack Query for state management
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Backend
+- FastAPI for REST API
+- PostgreSQL for database
+- SQLAlchemy for ORM
+- JWT for authentication
+- bcrypt for password hashing
 
-Changes made via Lovable will be committed automatically to this repo.
+## Quick Start
 
-**Use your preferred IDE**
+### Prerequisites
+- Node.js 16+ and npm
+- Python 3.8+ and pip
+- PostgreSQL database
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/subha19012005/Invoice-Analyzer.git
+   cd Invoice-Analyzer
+   ```
+
+2. **Backend Setup**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   python main.py
+   ```
+
+3. **Frontend Setup**
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+### Default Credentials
+- **Admin**: username `admin`, password `admin123`
+- **Reviewer**: username `reviewer`, password `reviewer123`
+
+## Project Structure
+
+```
+invoice-hub/
+├── backend/                 # FastAPI backend
+│   ├── main.py            # Application entry point
+│   ├── models.py          # Database models
+│   ├── routes/            # API routes
+│   └── database.py        # Database configuration
+├── src/                   # React frontend
+│   ├── components/         # Reusable components
+│   ├── pages/             # Page components
+│   ├── hooks/             # Custom hooks
+│   ├── services/          # API services
+│   └── types/             # TypeScript types
+└── public/                # Static assets
+```
+
+## API Documentation
+
+Once the backend is running, visit:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -71,3 +149,6 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+=======
+# Invoice-Analyzer
+>>>>>>> ca980f6beaee7b16ef49e17e2f418fe5676565ea

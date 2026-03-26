@@ -1,0 +1,17 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle with accent color -->
+  <circle cx="16" cy="16" r="16" fill="hsl(199, 89%, 48%)"/>
+  
+  <!-- Document icon -->
+  <rect x="7" y="6" width="18" height="20" rx="2" fill="white"/>
+  
+  <!-- Document lines representing invoice content -->
+  <rect x="10" y="10" width="12" height="1.5" fill="hsl(199, 89%, 48%)"/>
+  <rect x="10" y="13" width="12" height="1.5" fill="hsl(199, 89%, 48%)"/>
+  <rect x="10" y="16" width="8" height="1.5" fill="hsl(199, 89%, 48%)"/>
+  <rect x="10" y="19" width="10" height="1.5" fill="hsl(199, 89%, 48%)"/>
+  
+  <!-- Dollar sign to indicate invoice/billing -->
+  <circle cx="24" cy="8" r="4" fill="white"/>
+  <text x="24" y="11" text-anchor="middle" fill="hsl(199, 89%, 48%)" font-family="Arial, sans-serif" font-size="6" font-weight="bold">$</text>
+</svg>
