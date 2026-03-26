@@ -28,14 +28,26 @@ else:
     db_name = os.getenv("DB_NAME", "invoice")
     database_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-# Create engine
+# Schema isolation
+DB_SCHEMA = os.getenv("DB_SCHEMA", "invoice_analyzer")
+
+# Create engine with schema
+from sqlalchemy import event, text
 engine = create_engine(database_url)
+
+@event.listens_for(engine, "connect")
+def set_search_path(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute(f"SET search_path TO {DB_SCHEMA}, public")
+    cursor.close()
+    dbapi_conn.commit()
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create declarative base
-Base = declarative_base()
+# Create declarative base with schema
+from sqlalchemy import MetaData
+Base = declarative_base(metadata=MetaData(schema=DB_SCHEMA))
 
 # Dependency for getting database session
 def get_db():
