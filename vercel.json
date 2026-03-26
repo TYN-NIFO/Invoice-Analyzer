@@ -4,16 +4,16 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/auth/:path*", "destination": "http://3.111.213.97:8003/auth/:path*" },
-    { "source": "/invoices/:path*", "destination": "http://3.111.213.97:8003/invoices/:path*" },
+    { "source": "/auth/login", "destination": "http://3.111.213.97:8003/auth/login" },
     { "source": "/invoices", "destination": "http://3.111.213.97:8003/invoices" },
-    { "source": "/users/:path*", "destination": "http://3.111.213.97:8003/users/:path*" },
+    { "source": "/invoices/(.*)", "destination": "http://3.111.213.97:8003/invoices/$1" },
     { "source": "/users", "destination": "http://3.111.213.97:8003/users" },
-    { "source": "/metrics/:path*", "destination": "http://3.111.213.97:8003/metrics/:path*" },
-    { "source": "/logs/:path*", "destination": "http://3.111.213.97:8003/logs/:path*" },
+    { "source": "/users/(.*)", "destination": "http://3.111.213.97:8003/users/$1" },
+    { "source": "/metrics/(.*)", "destination": "http://3.111.213.97:8003/metrics/$1" },
     { "source": "/logs", "destination": "http://3.111.213.97:8003/logs" },
-    { "source": "/ingestion/:path*", "destination": "http://3.111.213.97:8003/ingestion/:path*" },
+    { "source": "/logs/(.*)", "destination": "http://3.111.213.97:8003/logs/$1" },
+    { "source": "/ingestion/(.*)", "destination": "http://3.111.213.97:8003/ingestion/$1" },
     { "source": "/ingestion-logs", "destination": "http://3.111.213.97:8003/ingestion-logs" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/:path*", "destination": "/index.html" }
   ]
 }
