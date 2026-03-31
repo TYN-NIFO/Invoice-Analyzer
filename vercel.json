@@ -1,19 +1,23 @@
 {
   "framework": "vite",
   "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist",
+  "outputDirectory": "dist",
   "installCommand": "npm install",
   "rewrites": [
-    { "source": "/auth/login", "destination": "http://3.111.213.97:8003/auth/login" },
-    { "source": "/invoices", "destination": "http://3.111.213.97:8003/invoices" },
-    { "source": "/invoices/(.*)", "destination": "http://3.111.213.97:8003/invoices/$1" },
-    { "source": "/users", "destination": "http://3.111.213.97:8003/users" },
-    { "source": "/users/(.*)", "destination": "http://3.111.213.97:8003/users/$1" },
-    { "source": "/metrics/(.*)", "destination": "http://3.111.213.97:8003/metrics/$1" },
-    { "source": "/logs", "destination": "http://3.111.213.97:8003/logs" },
-    { "source": "/logs/(.*)", "destination": "http://3.111.213.97:8003/logs/$1" },
-    { "source": "/ingestion/(.*)", "destination": "http://3.111.213.97:8003/ingestion/$1" },
-    { "source": "/ingestion-logs", "destination": "http://3.111.213.97:8003/ingestion-logs" },
-    { "source": "/:path*", "destination": "/index.html" }
+    { "source": "/invoice-processor/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/invoice-processor/favicon.svg", "destination": "/favicon.svg" },
+    { "source": "/invoice-processor/favicon.ico", "destination": "/favicon.ico" },
+    { "source": "/invoice-processor/placeholder.svg", "destination": "/placeholder.svg" },
+    { "source": "/invoice-processor/auth/login", "destination": "http://3.111.213.97:8003/auth/login" },
+    { "source": "/invoice-processor/invoices", "destination": "http://3.111.213.97:8003/invoices" },
+    { "source": "/invoice-processor/invoices/(.*)", "destination": "http://3.111.213.97:8003/invoices/$1" },
+    { "source": "/invoice-processor/users", "destination": "http://3.111.213.97:8003/users" },
+    { "source": "/invoice-processor/users/(.*)", "destination": "http://3.111.213.97:8003/users/$1" },
+    { "source": "/invoice-processor/metrics/(.*)", "destination": "http://3.111.213.97:8003/metrics/$1" },
+    { "source": "/invoice-processor/logs", "destination": "http://3.111.213.97:8003/logs" },
+    { "source": "/invoice-processor/logs/(.*)", "destination": "http://3.111.213.97:8003/logs/$1" },
+    { "source": "/invoice-processor/ingestion/(.*)", "destination": "http://3.111.213.97:8003/ingestion/$1" },
+    { "source": "/invoice-processor/ingestion-logs", "destination": "http://3.111.213.97:8003/ingestion-logs" },
+    { "source": "/invoice-processor/:path*", "destination": "/index.html" }
   ]
 }

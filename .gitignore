@@ -34,3 +34,4 @@ frontend/dist
 
 # Local smoke-test artifacts
 backend/manual_upload_smoke.csv
+.vercel

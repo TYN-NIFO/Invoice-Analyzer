@@ -31,7 +31,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename="/invoice-processor">
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Navigate to="/login" replace />} />
