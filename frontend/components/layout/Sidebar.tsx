@@ -4,10 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { 
   LayoutDashboard, 
   Users, 
-  FileText, 
   History, 
   ClipboardList,
-  LogOut,
   FileSearch,
   ChevronLeft,
   ChevronRight
@@ -39,15 +37,10 @@ const reviewerNavItems: NavItem[] = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
 
   const navItems = user?.role === 'admin' ? adminNavItems : reviewerNavItems;
-
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
-  };
 
   const isActive = (path: string) => {
     if (path === '/admin' || path === '/reviewer') {
@@ -114,18 +107,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             <p className="text-xs text-sidebar-foreground/60 capitalize">{user?.role}</p>
           </div>
         )}
-        
-        <button
-          onClick={handleLogout}
-          className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-            "text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive",
-            collapsed && "justify-center px-2"
-          )}
-        >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
       </div>
 
       {/* Toggle Button */}

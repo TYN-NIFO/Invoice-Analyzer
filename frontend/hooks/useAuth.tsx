@@ -1,20 +1,16 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
 import { 
-  login as loginService, 
-  logout as logoutService, 
   storeAuthData, 
   clearAuthData,
-  getStoredToken,
-  getStoredUser
+  getStoredToken
 } from '@/services/authService';
+import { API_BASE_URL } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,11 +24,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       try {
         const token = getStoredToken();
-        const storedUser = getStoredUser();
-        
-        if (token && storedUser) {
-          setUser(storedUser);
+        const nifoToken = localStorage.getItem('jwtAccessToken');
+        const candidateTokens = [
+          ...(token ? [token] : []),
+          ...(nifoToken && nifoToken !== token ? [nifoToken] : []),
+        ];
+
+        for (const candidate of candidateTokens) {
+          const response = await fetch(`${API_BASE_URL}/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${candidate}`,
+            },
+          });
+
+          if (!response.ok) {
+            continue;
+          }
+
+          const data = await response.json();
+          const normalizedUser = {
+            ...data.user,
+            createdAt: data.user.createdAt ?? data.user.created_at ?? '',
+          };
+          if (data.token) {
+            storeAuthData({ user: normalizedUser, token: data.token });
+          } else {
+            storeAuthData({ user: normalizedUser, token: candidate });
+          }
+          setUser(normalizedUser);
+          return;
         }
+
+        clearAuthData();
       } catch (error) {
         clearAuthData();
       } finally {
@@ -43,38 +66,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const response = await loginService({ username, password });
-      storeAuthData(response);
-      setUser(response.user);
-    } catch (error) {
-      // Re-throw the error to be handled by the component
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await logoutService();
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: !!user,
         isLoading,
-        login,
-        logout,
       }}
     >
       {children}

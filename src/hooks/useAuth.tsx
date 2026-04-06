@@ -1,19 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
-import { 
-  login as loginService, 
-  logout as logoutService, 
-  storeAuthData, 
-  clearAuthData,
-  getStoredToken 
-} from '@/services/authService';
+import { storeAuthData, clearAuthData, getStoredToken } from '@/services/authService';
+import { apiClient } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,17 +15,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing session on mount
   useEffect(() => {
     const initAuth = async () => {
       try {
         const token = getStoredToken();
-        const storedUser = localStorage.getItem('user');
-        
-        if (token && storedUser) {
-          setUser(JSON.parse(storedUser));
+        const nifoToken = localStorage.getItem('jwtAccessToken');
+        const candidateTokens = [
+          ...(token ? [token] : []),
+          ...(nifoToken && nifoToken !== token ? [nifoToken] : []),
+        ];
+
+        for (const candidate of candidateTokens) {
+          const response = await apiClient.get('/auth/me', {
+            headers: {
+              Authorization: `Bearer ${candidate}`,
+            },
+          });
+
+          const normalizedUser = {
+            ...response.data.user,
+            createdAt: response.data.user.createdAt ?? response.data.user.created_at ?? '',
+          };
+          storeAuthData({
+            user: normalizedUser,
+            token: response.data.token || candidate,
+          });
+          setUser(normalizedUser);
+          return;
         }
-      } catch (error) {
+
+        clearAuthData();
+      } catch {
         clearAuthData();
       } finally {
         setIsLoading(false);
@@ -42,38 +55,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const response = await loginService({ username, password });
-      storeAuthData(response);
-      setUser(response.user);
-    } catch (error) {
-      // Re-throw the error to be handled by the component
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const logout = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await logoutService();
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   return (
     <AuthContext.Provider
       value={{
         user,
         isAuthenticated: !!user,
         isLoading,
-        login,
-        logout,
       }}
     >
       {children}

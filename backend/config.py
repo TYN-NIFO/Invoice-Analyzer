@@ -45,6 +45,8 @@ API_KEY = os.getenv("API_KEY", "invoice-hub-secret-key-2024")
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+NIFO_USERINFO_URL = os.getenv("NIFO_USERINFO_URL", "").strip()
+NIFO_AUTO_PROVISION = os.getenv("NIFO_AUTO_PROVISION", "false").strip().lower() == "true"
 
 # ============= CORS =============
 ALLOWED_ORIGINS = os.getenv(
