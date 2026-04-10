@@ -277,7 +277,7 @@ async def get_invoice_decision_history(
 
 @router.get("/invoices/{invoice_id}/file")
 async def get_invoice_file(invoice_id: int, db: Session = Depends(get_db)):
-    """Stream invoice file from Google Drive for in-app preview (optimized with caching)"""
+    """Stream invoice file from S3 for in-app preview"""
     try:
         invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
 
@@ -287,7 +287,6 @@ async def get_invoice_file(invoice_id: int, db: Session = Depends(get_db)):
                 detail="Invoice not found"
             )
 
-        # Get S3 URL from pdf_url or drive_file_id
         pdf_url = invoice.pdf_url
 
         if not pdf_url:
@@ -296,18 +295,15 @@ async def get_invoice_file(invoice_id: int, db: Session = Depends(get_db)):
                 detail="Invoice file not available"
             )
 
-        # If URL is an S3 URL, download from S3
         try:
             BUCKET = os.getenv("BUCKET_NAME", "tyn-claims-app-storage-prod")
             s3 = get_s3_client()
 
             if s3 and "s3." in pdf_url and BUCKET in pdf_url:
-                # Extract S3 key from URL
                 s3_key = pdf_url.split(f"{BUCKET}.s3.")[1].split("/", 1)[1] if f"{BUCKET}.s3." in pdf_url else None
                 if s3_key:
                     response = s3.get_object(Bucket=BUCKET, Key=s3_key)
                     filename = s3_key.split("/")[-1]
-                    # Detect content type from filename
                     import mimetypes
                     content_type, _ = mimetypes.guess_type(filename)
                     if not content_type:
@@ -321,7 +317,6 @@ async def get_invoice_file(invoice_id: int, db: Session = Depends(get_db)):
                         }
                     )
 
-            # Fallback: redirect to the URL directly
             return RedirectResponse(url=pdf_url)
         except Exception as s3_error:
             raise HTTPException(
@@ -334,6 +329,60 @@ async def get_invoice_file(invoice_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching invoice file: {str(e)}"
+        )
+
+@router.get("/invoices/{invoice_id}/file-url")
+async def get_invoice_file_url(invoice_id: int, db: Session = Depends(get_db)):
+    """Return a temporary pre-signed S3 URL for direct browser access"""
+    try:
+        invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+
+        if not invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invoice not found"
+            )
+
+        pdf_url = invoice.pdf_url
+        if not pdf_url:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invoice file not available"
+            )
+
+        BUCKET = os.getenv("BUCKET_NAME", "tyn-claims-app-storage-prod")
+        s3 = get_s3_client()
+
+        if not s3 or "s3." not in pdf_url or BUCKET not in pdf_url:
+            return {"url": pdf_url}
+
+        s3_key = pdf_url.split(f"{BUCKET}.s3.")[1].split("/", 1)[1] if f"{BUCKET}.s3." in pdf_url else None
+        if not s3_key:
+            return {"url": pdf_url}
+
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(s3_key.split("/")[-1])
+        if not content_type:
+            content_type = "application/pdf"
+
+        presigned_url = s3.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': BUCKET,
+                'Key': s3_key,
+                'ResponseContentType': content_type,
+                'ResponseContentDisposition': 'inline',
+            },
+            ExpiresIn=3600,
+        )
+
+        return {"url": presigned_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating file URL: {str(e)}"
         )
 
 @router.get("/invoices/{invoice_id}")
