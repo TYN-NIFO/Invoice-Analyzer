@@ -307,9 +307,14 @@ async def get_invoice_file(invoice_id: int, db: Session = Depends(get_db)):
                 if s3_key:
                     response = s3.get_object(Bucket=BUCKET, Key=s3_key)
                     filename = s3_key.split("/")[-1]
+                    # Detect content type from filename
+                    import mimetypes
+                    content_type, _ = mimetypes.guess_type(filename)
+                    if not content_type:
+                        content_type = 'application/pdf'
                     return StreamingResponse(
                         response['Body'],
-                        media_type=response.get('ContentType', 'application/pdf'),
+                        media_type=content_type,
                         headers={
                             "Content-Disposition": f'inline; filename="{filename}"',
                             "Cache-Control": "public, max-age=86400",

@@ -311,11 +311,15 @@ def upload_to_drive(file_bytes: bytes, filename: str) -> Tuple[str, str]:
         file_id = str(uuid.uuid4())
         s3_key = f"{S3_PREFIX}{file_id}/{filename}"
 
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(filename)
+        if not content_type:
+            content_type = "application/octet-stream"
         s3.put_object(
             Bucket=BUCKET_NAME,
             Key=s3_key,
             Body=file_bytes,
-            ContentType="application/octet-stream"
+            ContentType=content_type
         )
 
         url = f"https://{BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{s3_key}"
