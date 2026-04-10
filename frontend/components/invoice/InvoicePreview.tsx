@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { FileText, ZoomIn, ZoomOut, Maximize2, Minimize2, Download, ExternalLink, RotateCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, ZoomIn, ZoomOut, Maximize2, Minimize2, Download, ExternalLink, RotateCw, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { API_BASE_URL } from '@/services/api';
+import { apiClient, API_BASE_URL } from '@/services/api';
 
 interface InvoicePreviewProps {
   invoiceId?: string;
@@ -17,44 +17,85 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
   invoiceNumber,
   vendorName,
   pdfUrl,
-  driveFileId
 }) => {
   const [zoom, setZoom] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<'pdf' | 'image' | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fileUrl = invoiceId ? `${API_BASE_URL}/invoices/${invoiceId}/file` : null;
-  const isImage = pdfUrl && /\.(jpg|jpeg|png|webp)$/i.test(pdfUrl);
+  const fileEndpoint = invoiceId ? `/invoices/${invoiceId}/file` : null;
+
+  // Fetch file as blob so we control rendering
+  useEffect(() => {
+    if (!fileEndpoint) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    apiClient
+      .get(fileEndpoint, { responseType: 'blob' })
+      .then((res) => {
+        if (cancelled) return;
+        const blob = res.data as Blob;
+        const contentType = blob.type || res.headers['content-type'] || '';
+
+        if (contentType.includes('pdf')) {
+          setFileType('pdf');
+        } else if (contentType.startsWith('image/')) {
+          setFileType('image');
+        } else {
+          // Guess from pdfUrl extension
+          if (pdfUrl && /\.(jpg|jpeg|png|webp)$/i.test(pdfUrl)) {
+            setFileType('image');
+          } else {
+            setFileType('pdf');
+          }
+        }
+
+        setBlobUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        if (!cancelled) setError('Failed to load file');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [fileEndpoint]);
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 25, 200));
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 25, 50));
   const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
 
   const handleDownload = () => {
-    if (fileUrl) {
+    if (blobUrl) {
       const a = document.createElement('a');
-      a.href = fileUrl;
-      a.download = `invoice-${invoiceNumber}.pdf`;
+      a.href = blobUrl;
+      a.download = `invoice-${invoiceNumber}.${fileType === 'image' ? 'jpg' : 'pdf'}`;
       a.click();
     }
   };
 
   const handleOpenNewTab = () => {
-    if (fileUrl) window.open(fileUrl, '_blank', 'noopener,noreferrer');
+    if (blobUrl) window.open(blobUrl, '_blank');
   };
 
   const toggleFullscreen = () => setIsFullscreen((prev) => !prev);
 
-  const containerClass = isFullscreen
-    ? 'fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col'
-    : 'h-full flex flex-col';
-
   return (
     <div className={isFullscreen ? 'fixed inset-0 z-50' : ''}>
       <Card className={`shadow-card overflow-hidden ${isFullscreen ? 'h-full rounded-none border-0' : 'h-full'}`}>
-        <CardContent className={`p-0 ${containerClass}`}>
+        <CardContent className="p-0 h-full flex flex-col">
           {/* Toolbar */}
-          <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/40">
+          <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/40 shrink-0">
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
@@ -63,7 +104,7 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
             </div>
 
             <div className="flex items-center gap-1">
-              {isImage && (
+              {fileType === 'image' && blobUrl && (
                 <>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomOut} title="Zoom out">
                     <ZoomOut className="w-4 h-4" />
@@ -79,7 +120,7 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
                 </>
               )}
 
-              {fileUrl && (
+              {blobUrl && (
                 <>
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDownload} title="Download">
                     <Download className="w-4 h-4" />
@@ -98,37 +139,42 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
 
           {/* Content */}
           <div className="flex-1 overflow-auto bg-muted/20">
-            {fileUrl ? (
-              isImage ? (
-                <div className="flex items-center justify-center min-h-[600px] p-4">
-                  <img
-                    src={fileUrl}
-                    className="max-w-full h-auto shadow-lg rounded transition-transform duration-200"
-                    style={{
-                      transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
-                      transformOrigin: 'center center',
-                    }}
-                    alt={`Invoice ${invoiceNumber}`}
-                  />
-                </div>
-              ) : (
-                <iframe
-                  src={`${fileUrl}#toolbar=1&navpanes=0`}
-                  className="w-full border-0"
-                  style={{ height: isFullscreen ? 'calc(100vh - 48px)' : '700px' }}
-                  title={`Invoice ${invoiceNumber}`}
-                />
-              )
-            ) : (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center min-h-[600px]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+                <p className="text-sm text-muted-foreground">Loading document...</p>
+              </div>
+            ) : error || !blobUrl ? (
               <div className="flex flex-col items-center justify-center min-h-[600px] p-8">
                 <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
                   <FileText className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium text-foreground mb-1">No file available</p>
+                <p className="text-sm font-medium text-foreground mb-1">
+                  {error || 'No file available'}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Invoice {invoiceNumber} from {vendorName}
                 </p>
               </div>
+            ) : fileType === 'image' ? (
+              <div className="flex items-center justify-center min-h-[600px] p-4">
+                <img
+                  src={blobUrl}
+                  className="max-w-full h-auto shadow-lg rounded transition-transform duration-200"
+                  style={{
+                    transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                    transformOrigin: 'center center',
+                  }}
+                  alt={`Invoice ${invoiceNumber}`}
+                />
+              </div>
+            ) : (
+              <iframe
+                src={`${blobUrl}#toolbar=1&navpanes=0`}
+                className="w-full border-0"
+                style={{ height: isFullscreen ? 'calc(100vh - 48px)' : '700px' }}
+                title={`Invoice ${invoiceNumber}`}
+              />
             )}
           </div>
         </CardContent>
