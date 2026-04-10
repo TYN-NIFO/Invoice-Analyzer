@@ -154,10 +154,10 @@ const InvoiceReview: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Preview */}
-        <div>
-          <InvoicePreview 
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Left: Preview (takes 3/5 of space) */}
+        <div className="lg:col-span-3">
+          <InvoicePreview
             invoiceId={invoice.id}
             invoiceNumber={invoice.invoiceNumber}
             vendorName={invoice.vendorName}
@@ -166,8 +166,8 @@ const InvoiceReview: React.FC = () => {
           />
         </div>
 
-        {/* Right: Form */}
-        <div>
+        {/* Right: Form (takes 2/5 of space) */}
+        <div className="lg:col-span-2">
           <InvoiceForm
             invoice={invoice}
             onAccept={handleAccept}

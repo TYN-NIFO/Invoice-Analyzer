@@ -1,6 +1,7 @@
-import React from 'react';
-import { FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, ZoomIn, ZoomOut, Maximize2, Minimize2, Download, ExternalLink, RotateCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { API_BASE_URL } from '@/services/api';
 
 interface InvoicePreviewProps {
@@ -18,60 +19,121 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
   pdfUrl,
   driveFileId
 }) => {
-  // Use the backend file endpoint to serve the invoice
-  const fileUrl = invoiceId ? `${API_BASE_URL}/invoices/${invoiceId}/file` : null;
+  const [zoom, setZoom] = useState(100);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [rotation, setRotation] = useState(0);
 
-  // Determine if it's an image or PDF based on the URL
+  const fileUrl = invoiceId ? `${API_BASE_URL}/invoices/${invoiceId}/file` : null;
   const isImage = pdfUrl && /\.(jpg|jpeg|png|webp)$/i.test(pdfUrl);
 
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 25, 200));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 25, 50));
+  const handleRotate = () => setRotation((prev) => (prev + 90) % 360);
+
+  const handleDownload = () => {
+    if (fileUrl) {
+      const a = document.createElement('a');
+      a.href = fileUrl;
+      a.download = `invoice-${invoiceNumber}.pdf`;
+      a.click();
+    }
+  };
+
+  const handleOpenNewTab = () => {
+    if (fileUrl) window.open(fileUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const toggleFullscreen = () => setIsFullscreen((prev) => !prev);
+
+  const containerClass = isFullscreen
+    ? 'fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col'
+    : 'h-full flex flex-col';
+
   return (
-    <Card className="h-full shadow-card overflow-hidden">
-      <CardContent className="p-0 h-full">
-        {fileUrl ? (
-          isImage ? (
-            <img
-              src={fileUrl}
-              className="w-full h-full min-h-[600px] object-contain bg-muted/10"
-              alt={`Invoice ${invoiceNumber}`}
-            />
-          ) : (
-            <iframe
-              src={fileUrl}
-              className="w-full h-full min-h-[600px] border-0"
-              title={`Invoice ${invoiceNumber}`}
-            />
-          )
-        ) : (
-          <div className="h-full min-h-[600px] bg-muted/30 flex flex-col items-center justify-center p-8">
-            <div className="w-full max-w-md bg-card rounded-lg shadow-lg border border-border p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-foreground">{vendorName}</p>
-                    <p className="text-sm text-muted-foreground">Invoice Document</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">Invoice #</p>
-                  <p className="font-mono font-bold text-foreground">{invoiceNumber}</p>
-                </div>
-              </div>
-              <div className="space-y-4 mb-8">
-                <div className="h-4 bg-muted rounded w-3/4" />
-                <div className="h-4 bg-muted rounded w-1/2" />
-                <div className="h-4 bg-muted rounded w-5/6" />
-              </div>
-              <p className="text-sm text-muted-foreground text-center">
-                No invoice file available
-              </p>
+    <div className={isFullscreen ? 'fixed inset-0 z-50' : ''}>
+      <Card className={`shadow-card overflow-hidden ${isFullscreen ? 'h-full rounded-none border-0' : 'h-full'}`}>
+        <CardContent className={`p-0 ${containerClass}`}>
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/40">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                {invoiceNumber} — {vendorName}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {isImage && (
+                <>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomOut} title="Zoom out">
+                    <ZoomOut className="w-4 h-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground w-10 text-center">{zoom}%</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomIn} title="Zoom in">
+                    <ZoomIn className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRotate} title="Rotate">
+                    <RotateCw className="w-4 h-4" />
+                  </Button>
+                  <div className="w-px h-5 bg-border mx-1" />
+                </>
+              )}
+
+              {fileUrl && (
+                <>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleDownload} title="Download">
+                    <Download className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleOpenNewTab} title="Open in new tab">
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
+
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </Button>
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {/* Content */}
+          <div className="flex-1 overflow-auto bg-muted/20">
+            {fileUrl ? (
+              isImage ? (
+                <div className="flex items-center justify-center min-h-[600px] p-4">
+                  <img
+                    src={fileUrl}
+                    className="max-w-full h-auto shadow-lg rounded transition-transform duration-200"
+                    style={{
+                      transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
+                      transformOrigin: 'center center',
+                    }}
+                    alt={`Invoice ${invoiceNumber}`}
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={`${fileUrl}#toolbar=1&navpanes=0`}
+                  className="w-full border-0"
+                  style={{ height: isFullscreen ? 'calc(100vh - 48px)' : '700px' }}
+                  title={`Invoice ${invoiceNumber}`}
+                />
+              )
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[600px] p-8">
+                <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                  <FileText className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground mb-1">No file available</p>
+                <p className="text-xs text-muted-foreground">
+                  Invoice {invoiceNumber} from {vendorName}
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
