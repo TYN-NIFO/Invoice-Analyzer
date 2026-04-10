@@ -1,6 +1,7 @@
 import React from 'react';
 import { FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { API_BASE_URL } from '@/services/api';
 
 interface InvoicePreviewProps {
   invoiceId?: string;
@@ -18,7 +19,7 @@ const InvoicePreview: React.FC<InvoicePreviewProps> = ({
   driveFileId
 }) => {
   // Use the backend file endpoint to serve the invoice
-  const fileUrl = invoiceId ? `/invoices/${invoiceId}/file` : null;
+  const fileUrl = invoiceId ? `${API_BASE_URL}/invoices/${invoiceId}/file` : null;
 
   // Determine if it's an image or PDF based on the URL
   const isImage = pdfUrl && /\.(jpg|jpeg|png|webp)$/i.test(pdfUrl);

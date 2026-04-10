@@ -7,7 +7,6 @@ import os
 import pickle
 import time
 from email.header import decode_header
-from mindee import ClientV2, InferenceParameters, BytesInput
 from sqlalchemy.orm import Session
 from models import Invoice, LineItem, EmailIngestionLog
 from database import SessionLocal
@@ -15,7 +14,6 @@ import logging
 from typing import List, Tuple, Dict
 from config import (
     EMAIL_USER, EMAIL_PASS, IMAP_SERVER, PROCESSED_LABEL,
-    MINDEE_API_KEY, MINDEE_MODEL_ID,
     INVOICE_TERMS, ALLOWED_EXTENSIONS, EXCEL_FILE
 )
 import boto3
@@ -201,62 +199,100 @@ def get_s3_client():
 # ================= OCR EXTRACTION =================
 
 def ocr_and_extract_data(file_name: str, file_bytes: bytes) -> Dict:
-    """Extract invoice data using Mindee OCR with retry logic"""
-    max_retries = 3
+    """Extract invoice data using AWS Textract AnalyzeExpense"""
     try:
-        for attempt in range(max_retries):
-            try:
-                mindee_client = ClientV2(api_key=MINDEE_API_KEY)
-                params = InferenceParameters(
-                    model_id=MINDEE_MODEL_ID,
-                    rag=None,
-                    raw_text=None,
-                    polygon=None,
-                    confidence=None,
-                )
-                
-                input_source = BytesInput(file_bytes, filename=file_name)
-                response = mindee_client.enqueue_and_get_inference(input_source, params)
-                fields = response.inference.result.fields
-                break
-            except Exception as inner_e:
-                if attempt < max_retries - 1:
-                    logger.warning(f"OCR attempt {attempt+1} failed, retrying in 3s: {str(inner_e)}")
-                    time.sleep(3)
-                else:
-                    raise
-        
-        # Extract date with proper None handling
-        date_value = None
-        if "date" in fields and fields["date"].value:
-            date_value = str(fields["date"].value)
-        else:
-            date_value = datetime.datetime.now().isoformat()
-        
+        textract = boto3.client(
+            'textract',
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=AWS_REGION,
+        )
+
+        response = textract.analyze_expense(
+            Document={'Bytes': file_bytes}
+        )
+
+        # Parse Textract AnalyzeExpense response
         data = {
-            "invoice_number": fields.get("invoice_number", {}).value if "invoice_number" in fields else "N/A",
-            "customer_name": fields.get("customer_name", {}).value if "customer_name" in fields else "N/A",
-            "date": date_value,
-            "vendor_name": fields.get("supplier_name", {}).value if "supplier_name" in fields else "N/A",
-            "po_number": fields.get("po_number", {}).value if "po_number" in fields else "N/A",
-            "amount": float(fields.get("total_amount", {}).value or 0) if "total_amount" in fields else 0.0,
-            "tax": float(fields.get("total_tax", {}).value or 0) if "total_tax" in fields else 0.0,
+            "invoice_number": "N/A",
+            "customer_name": "N/A",
+            "date": datetime.datetime.now().isoformat(),
+            "vendor_name": "N/A",
+            "po_number": "N/A",
+            "amount": 0.0,
+            "tax": 0.0,
         }
-        
+
         line_items = []
-        if "line_items" in fields and fields["line_items"].items:
-            for item in fields["line_items"].items:
-                sub = item.fields
-                line_items.append({
-                    "description": sub.get("description", {}).value if "description" in sub else "N/A",
-                    "quantity": float(sub.get("quantity", {}).value or 0) if "quantity" in sub else 0,
-                    "unit_price": float(sub.get("unit_price", {}).value or 0) if "unit_price" in sub else 0,
-                    "total_price": float(sub.get("total_price", {}).value or 0) if "total_price" in sub else 0,
-                })
-        
+
+        for doc in response.get("ExpenseDocuments", []):
+            # Extract summary fields
+            for field in doc.get("SummaryFields", []):
+                field_type = (field.get("Type", {}).get("Text", "") or "").upper()
+                field_value = field.get("ValueDetection", {}).get("Text", "")
+
+                if not field_value:
+                    continue
+
+                if field_type in ("INVOICE_RECEIPT_ID", "INVOICE_NUMBER"):
+                    data["invoice_number"] = field_value
+                elif field_type == "INVOICE_RECEIPT_DATE":
+                    data["date"] = field_value
+                elif field_type in ("VENDOR_NAME", "SUPPLIER_NAME"):
+                    data["vendor_name"] = field_value
+                elif field_type in ("RECEIVER_NAME", "CUSTOMER_NAME"):
+                    data["customer_name"] = field_value
+                elif field_type == "PO_NUMBER":
+                    data["po_number"] = field_value
+                elif field_type in ("SUBTOTAL", "AMOUNT"):
+                    try:
+                        data["amount"] = float(field_value.replace(",", "").replace("$", "").strip())
+                    except (ValueError, AttributeError):
+                        pass
+                elif field_type == "TAX":
+                    try:
+                        data["tax"] = float(field_value.replace(",", "").replace("$", "").strip())
+                    except (ValueError, AttributeError):
+                        pass
+                elif field_type == "TOTAL":
+                    try:
+                        total = float(field_value.replace(",", "").replace("$", "").strip())
+                        if data["amount"] == 0.0:
+                            data["amount"] = total
+                    except (ValueError, AttributeError):
+                        pass
+
+            # Extract line items
+            for line_item_group in doc.get("LineItemGroups", []):
+                for line_item in line_item_group.get("LineItems", []):
+                    item = {"description": "N/A", "quantity": 0, "unit_price": 0, "total_price": 0}
+                    for expense_field in line_item.get("LineItemExpenseFields", []):
+                        ft = (expense_field.get("Type", {}).get("Text", "") or "").upper()
+                        fv = expense_field.get("ValueDetection", {}).get("Text", "")
+                        if not fv:
+                            continue
+                        if ft in ("ITEM", "DESCRIPTION", "PRODUCT_CODE"):
+                            item["description"] = fv
+                        elif ft == "QUANTITY":
+                            try:
+                                item["quantity"] = float(fv.replace(",", "").strip())
+                            except (ValueError, AttributeError):
+                                pass
+                        elif ft == "UNIT_PRICE":
+                            try:
+                                item["unit_price"] = float(fv.replace(",", "").replace("$", "").strip())
+                            except (ValueError, AttributeError):
+                                pass
+                        elif ft in ("PRICE", "AMOUNT"):
+                            try:
+                                item["total_price"] = float(fv.replace(",", "").replace("$", "").strip())
+                            except (ValueError, AttributeError):
+                                pass
+                    line_items.append(item)
+
         data["line_items"] = line_items
         data["total_amount"] = data["amount"] + data["tax"]
-        
+
         return data
     except Exception as e:
         logger.error(f"OCR error for {file_name}: {str(e)}")

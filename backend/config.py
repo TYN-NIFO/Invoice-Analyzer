@@ -30,9 +30,8 @@ EMAIL_PASS = os.getenv("EMAIL_PASS", "pend sdym nkzx hrzg")
 IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.gmail.com")
 PROCESSED_LABEL = os.getenv("PROCESSED_LABEL", "Processed_Invoices")
 
-# ============= MINDEE OCR =============
-MINDEE_API_KEY = os.getenv("MINDEE_V2_API_KEY")
-MINDEE_MODEL_ID = os.getenv("MINDEE_MODEL_ID", "bb1d6757-1c08-46cb-b4b0-f17a439d57ab")
+# ============= AWS TEXTRACT (OCR) =============
+# Uses existing AWS credentials from environment
 
 # ============= GOOGLE DRIVE =============
 GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "1LoRbKdiCsO4UpC2ahXcjdS4O5Nz3-ua_")
