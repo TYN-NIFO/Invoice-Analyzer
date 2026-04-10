@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ClipboardList, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { ReviewerMetrics } from '@/types';
@@ -83,8 +84,8 @@ const ReviewerDashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <a 
-              href="/reviewer/queue"
+            <Link
+              to="/reviewer/queue"
               className="p-4 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center gap-3">
@@ -100,9 +101,9 @@ const ReviewerDashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-            </a>
-            <a 
-              href="/reviewer/history"
+            </Link>
+            <Link
+              to="/reviewer/history"
               className="p-4 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center gap-3">
@@ -118,7 +119,7 @@ const ReviewerDashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>
